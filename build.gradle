@@ -1,0 +1,61 @@
+plugins {
+    id 'org.springframework.boot' version '2.5.5'
+    id 'io.spring.dependency-management' version '1.0.11.RELEASE'
+    id 'java'
+    id 'com.github.node-gradle.node' version '2.2.0'
+}
+
+group = 'workshop'
+version = '0.0.1-SNAPSHOT'
+sourceCompatibility = '11'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.flywaydb:flyway-core'
+    runtimeOnly 'org.postgresql:postgresql'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+node {
+    version = "16.13.1"
+    download = true
+}
+
+task installFrontend(type: Exec) {
+    inputs.file(file("./src/ts/yarn.lock"))
+    inputs.file(file("./src/ts/package.json"))
+    outputs.dir(file("./src/ts/node_modules"))
+    commandLine("yarn", "--cwd", "./src/ts", "install")
+}
+
+task buildFrontend(type: Exec) {
+    dependsOn("installFrontend")
+    inputs.dir(file("./src/ts"))
+    outputs.dir(file("./src/ts/build"))
+    commandLine("yarn", "--cwd", "./src/ts", "build")
+}
+
+task copyFrontend(type: Sync) {
+    dependsOn("buildFrontend")
+    from(file("././src/ts/build"))
+    into(file("$buildDir/resources/main/static"))
+    doLast {
+        println("copied built frontend to static resources")
+    }
+}
+
+bootJar {
+    dependsOn(copyFrontend)
+}
+
+bootRun {
+    dependsOn(copyFrontend)
+}
